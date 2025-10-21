@@ -33,7 +33,7 @@ from frg.utils.analysis import (
 from frg.utils.utils import get_cfg_defaults, get_logger, load_data
 
 # Set the version number
-__version__ = "v1.0.4"
+__version__ = "v1.0.5"
 
 # Set the author
 __author__ = "Riccardo Finotello"

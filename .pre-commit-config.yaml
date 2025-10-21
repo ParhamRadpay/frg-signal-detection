@@ -24,7 +24,7 @@ repos:
       - id: mixed-line-ending
         args: ["--fix=auto"]
       - id: name-tests-test
-        args: ["--pytest"]
+        args: ["--pytest-test-first"]
       - id: pretty-format-json
         args: ["--autofix", "--indent", "4"]
       - id: requirements-txt-fixer
