@@ -8,6 +8,8 @@ variables:
   BUILDFORMAT: html
   REPORT: report.xml
   COVERAGE: coverage.xml
+  UVSYNC: uv sync
+  UVRUN: uv run
 
 stages:
   - test
@@ -23,6 +25,8 @@ cache:
   before_script:
     - python -m ensurepip --upgrade
     - python -m pip install --upgrade pip setuptools wheel
+    - python -m pip install uv
+    - ${UVSYNC} --python=python
   tags:
     - is247653
   cache:
@@ -40,8 +44,8 @@ coverage:
     key: "${CI_JOB_IMAGE}-${CI_COMMIT_REF_SLUG}"
     policy: pull-push
   script:
-    - pip install -e . --group test
-    - pytest --junitxml=${REPORT} --cov-report term --cov-report xml:${COVERAGE} --cov=src/ptdismap tests
+    - ${UVSYNC} --group test
+    - ${UVRUN} pytest --junitxml=${REPORT} --cov-report term --cov-report xml:${COVERAGE} --cov=src/ptdismap tests
   coverage: '/TOTAL.*\s+(\d+%)$/'
   artifacts:
     when: always
@@ -56,8 +60,8 @@ pages:
   extends: .python_base
   stage: deploy
   script:
-    - pip install -e . --group docs
-    - ${SPHINXBUILD} -b ${BUILDFORMAT} ${DOCSDIR}/${SOURCEDIR} ${BUILDDIR}
+    - ${UVSYNC} --group docs
+    - ${UVRUN} ${SPHINXBUILD} -b ${BUILDFORMAT} ${DOCSDIR}/${SOURCEDIR} ${BUILDDIR}
   artifacts:
     paths:
       - ${BUILDDIR}
