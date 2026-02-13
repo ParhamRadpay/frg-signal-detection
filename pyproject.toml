@@ -30,12 +30,26 @@ classifiers = [
     "Topic :: Scientific/Engineering",
 ]
 license = { file = "LICENSE" }
-dynamic = ["version", "dependencies"]
+dynamic = ["version"]
+dependencies = [
+    "ipykernel==6.29.5",
+    "matplotlib==3.9.2",
+    "numpy==2.1.3",
+    "pandas==2.3.0",
+    "scikit-image==0.25.0",
+    "scipy==1.14.1",
+    "yacs==0.1.8",
+]
+
+[dependency-groups]
+dev = ["better-exceptions>=0.3.3", "pre-commit>=4.2.0"]
+docs = ["sphinx>=8.2.3", "sphinx-rtd-theme>=3.0.2"]
+test = ["pytest>=8.4.1", "pytest-cov>=6.2.1"]
 
 [project.optional-dependencies]
-test = ["pytest>=7.4.0", "pytest-cov>=4.1.0"]
-docs = ["esbonio>=0.16.5", "sphinx>=6.2.1", "sphinx-rtd-theme>=1.2.0"]
-dev = ["pre-commit>=4.2.0"]
+test = ["pytest>=8.4.1", "pytest-cov>=6.2.1"]
+docs = ["sphinx>=8.2.3", "sphinx-rtd-theme>=3.0.2"]
+dev = ["better-exceptions>=0.3.3", "pre-commit>=4.2.0"]
 
 [project.urls]
 Homepage = "https://github.com/thesfinox/frg-signal-detection"
@@ -45,7 +59,6 @@ Issues = "https://github.com/thesfinox/frg-signal-detection/issues"
 
 [tool.setuptools.dynamic]
 version = { attr = "frg.__version__" }
-dependencies = { file = "requirements.txt" }
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -1,3 +1,5 @@
+image: python:3.12
+
 variables:
   SPHINXBUILD: sphinx-build
   DOCSDIR: docs
@@ -9,54 +11,52 @@ variables:
 
 stages:
   - test
-  - build
   - deploy
 
-image: python:3.12
+cache:
+  paths:
+    - .cache/pip
+  key: "${CI_JOB_IMAGE}-${CI_COMMIT_REF_SLUG}"
+  policy: pull
 
-before_script:
-  - apt-get update && apt-get install -y git
-  - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.deeplab.intra.cea.fr".insteadOf "https://gitlab.deeplab.intra.cea.fr"
-  - python -m venv venv
-  - source venv/bin/activate
-  - python -m ensurepip --upgrade
-  - pip install -r requirements.txt
-
-tests:
+.python_base:
+  before_script:
+    - python -m ensurepip --upgrade
+    - python -m pip install --upgrade pip setuptools wheel
   tags:
-    - python
-  stage: test
-  script:
-    - pip install pytest
-    - pytest --junitxml=${REPORT}
-  artifacts:
-    when: always
-    expire_in: 30 days
-    reports:
-      junit: ${REPORT}
+    - is247653
+  cache:
+    paths:
+      - .cache/pip
+    key: "${CI_JOB_IMAGE}-${CI_COMMIT_REF_SLUG}"
+    policy: pull
 
 coverage:
-  tags:
-    - python
+  extends: .python_base
   stage: test
+  cache:
+    paths:
+      - .cache/pip
+    key: "${CI_JOB_IMAGE}-${CI_COMMIT_REF_SLUG}"
+    policy: pull-push
   script:
-    - pip install pytest pytest-cov
-    - pytest --cov-report term --cov-report xml:${COVERAGE} --cov=src/ptdismap tests
+    - pip install -e . --group test
+    - pytest --junitxml=${REPORT} --cov-report term --cov-report xml:${COVERAGE} --cov=src/ptdismap tests
   coverage: '/TOTAL.*\s+(\d+%)$/'
   artifacts:
     when: always
     expire_in: 30 days
     reports:
+      junit: ${REPORT}
       coverage_report:
         coverage_format: cobertura
         path: ${COVERAGE}
 
 pages:
-  tags:
-    - python
-  stage: build
+  extends: .python_base
+  stage: deploy
   script:
-    - pip install sphinx sphinx-rtd-theme
+    - pip install -e . --group docs
     - ${SPHINXBUILD} -b ${BUILDFORMAT} ${DOCSDIR}/${SOURCEDIR} ${BUILDDIR}
   artifacts:
     paths:
