@@ -22,7 +22,7 @@ copyright = (
     "2025, Commissariat à l'énergie atomique et aux énergies alternatives"
 )
 author = "Riccardo Finotello <riccardo.finotello@cea.fr>"
-release = "v1.0.0"
+release = "v2.0.0"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
