@@ -1,51 +1,59 @@
 image: python:3.12
 
 variables:
-  SPHINXBUILD: sphinx-build
-  DOCSDIR: docs
-  SOURCEDIR: source
-  BUILDDIR: public
-  BUILDFORMAT: html
-  REPORT: report.xml
-  COVERAGE: coverage.xml
-  UVSYNC: uv sync
-  UVRUN: uv run
+  # uv
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  UV_CACHE_DIR: "$CI_PROJECT_DIR/.cache/uv"
+  UVSYNC: "uv sync --python=python"
+  UVRUN: "uv run --python=python"
+  UVBUILD: "uv build"
+  # Sphinx
+  SPHINXBUILD: "sphinx-build"
+  DOCSDIR: "docs"
+  SOURCEDIR: "source"
+  BUILDDIR: "public"
+  BUILDFORMAT: "html"
+  # Reporting
+  REPORT: "report.xml"
+  COVERAGE: "coverage.xml"
+  # GIT
+  GIT_SSL_NO_VERIFY: "1"
 
 stages:
   - test
   - deploy
+  - build
+  - release
 
+# Global cache definition
 cache:
-  paths:
-    - .cache/pip
   key: "${CI_JOB_IMAGE}-${CI_COMMIT_REF_SLUG}"
-  policy: pull
+  paths:
+    - ${UV_CACHE_DIR}
+    - ${PIP_CACHE_DIR}
+  policy: pull-push
 
 .python_base:
   before_script:
     - python -m ensurepip --upgrade
-    - python -m pip install --upgrade pip setuptools wheel
-    - python -m pip install uv
-    - ${UVSYNC} --python=python
+    - python -m pip install --upgrade pip setuptools wheel uv
+    - ${UVSYNC}
   tags:
     - is247653
-  cache:
-    paths:
-      - .cache/pip
-    key: "${CI_JOB_IMAGE}-${CI_COMMIT_REF_SLUG}"
-    policy: pull
 
 coverage:
   extends: .python_base
   stage: test
-  cache:
-    paths:
-      - .cache/pip
-    key: "${CI_JOB_IMAGE}-${CI_COMMIT_REF_SLUG}"
-    policy: pull-push
+  image: "$PYTHON_IMAGE"
+  parallel:
+    matrix:
+      - PYTHON_IMAGE:
+          - "python:3.10"
+          - "python:3.11"
+          - "python:3.12"
   script:
     - ${UVSYNC} --group test
-    - ${UVRUN} pytest --junitxml=${REPORT} --cov-report term --cov-report xml:${COVERAGE} --cov=src/ptdismap tests
+    - ${UVRUN} pytest --junitxml=${REPORT} --cov-report term --cov-report xml:${COVERAGE} --cov=src/frg tests
   coverage: '/TOTAL.*\s+(\d+%)$/'
   artifacts:
     when: always
@@ -67,3 +75,58 @@ pages:
       - ${BUILDDIR}
   only:
     - main
+
+# Build release on tag push (Python 3.10 only)
+build_release:
+  extends: .python_base
+  stage: build
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "release"'
+      when: never
+    - if: "$CI_COMMIT_TAG"
+  script:
+    - ${UVBUILD}
+    - uv publish --publish-url "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/pypi" --username gitlab-ci-token --password "${CI_JOB_TOKEN}" --allow-insecure-host gitlab.deeplab.intra.cea.fr dist/*
+    - export CLEAN_VERSION=${CI_COMMIT_TAG#v}
+    - export WHEEL_NAME="frg_${CLEAN_VERSION}_py3_none-any.whl"
+    - export TAR_NAME="frg_${CLEAN_VERSION}.tar.gz"
+    - mv dist/*.whl dist/${WHEEL_NAME}
+    - mv dist/*.tar.gz dist/${TAR_NAME}
+    - echo "PACKAGE_VERSION=${CLEAN_VERSION}" > release.env
+    - echo "BUILD_JOB_ID=${CI_JOB_ID}" >> release.env
+    - echo "WHEEL_NAME=${WHEEL_NAME}" >> release.env
+    - echo "TAR_NAME=${TAR_NAME}" >> release.env
+  artifacts:
+    expire_in: 1 week
+    reports:
+      dotenv: release.env
+    paths:
+      - dist/*.whl
+      - dist/*.tar.gz
+    name: "${CI_PROJECT_NAME}-${CI_COMMIT_TAG}"
+
+# Create GitLab release with artifacts
+release_create:
+  stage: release
+  image: registry.gitlab.com/gitlab-org/release-cli:latest
+  tags:
+    - is247653
+  needs:
+    - job: build_release
+      artifacts: true
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "release"'
+      when: never
+    - if: "$CI_COMMIT_TAG"
+  script:
+    - apk add --no-cache git
+    - echo "Creating release $CI_COMMIT_TAG"
+    - git fetch --tags
+    - git tag -l --format='%(contents)' $CI_COMMIT_TAG > release_notes.txt
+    - |
+      release-cli --insecure-https create \
+        --name "Release $CI_COMMIT_TAG" \
+        --tag-name "$CI_COMMIT_TAG" \
+        --description "./release_notes.txt" \
+        --assets-link "{\"name\":\"Python Wheel (Py3)\",\"url\":\"${CI_SERVER_URL}/${CI_PROJECT_PATH}/-/jobs/${BUILD_JOB_ID}/artifacts/file/dist/${WHEEL_NAME}\",\"link_type\":\"package\"}" \
+        --assets-link "{\"name\":\"Source Distribution (.tar.gz)\",\"url\":\"${CI_SERVER_URL}/${CI_PROJECT_PATH}/-/jobs/${BUILD_JOB_ID}/artifacts/file/dist/${TAR_NAME}\",\"link_type\":\"package\"}"
