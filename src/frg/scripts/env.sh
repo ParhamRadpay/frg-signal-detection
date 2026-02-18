@@ -15,12 +15,10 @@ if [ -d "${FRG_PROJECT_ROOT}/src/frg" ]; then
     # Developer mode
     export FRG_CONFIGPATH=${FRG_PROJECT_ROOT}/src/frg/configs
     export FRG_SCRIPTPATH=${FRG_PROJECT_ROOT}/src/frg/scripts
-    export FRG_NOTEBOOKPATH=${FRG_PROJECT_ROOT}/src/frg/notebooks
 else
     # User workspace mode (after frg-init)
     export FRG_CONFIGPATH=${FRG_PROJECT_ROOT}/configs
     export FRG_SCRIPTPATH=${FRG_PROJECT_ROOT}/scripts
-    export FRG_NOTEBOOKPATH=${FRG_PROJECT_ROOT}/notebooks
 fi
 
 export SCRATCHDIR=${SCRATCHDIR:-${HOME}/Datasets}
